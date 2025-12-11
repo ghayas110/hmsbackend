@@ -5,6 +5,10 @@ exports.createInvoice = async (req, res) => {
         const cashierId = req.user.id;
         const { patient_id, amount } = req.body;
 
+        if (!patient_id) {
+            return res.status(400).json({ message: 'Patient ID is required' });
+        }
+
         const invoice = await Invoice.create({
             patient_id,
             amount,

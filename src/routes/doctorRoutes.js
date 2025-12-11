@@ -32,7 +32,7 @@ router.post('/test-category', doctorController.addTestCategory);
 router.get('/test-category', doctorController.getTestCategories);
 router.put('/test-category/:id', doctorController.updateTestCategory);
 router.delete('/test-category/:id', doctorController.deleteTestCategory);
-
 router.post('/test-definition', doctorController.addTestDefinition);
+router.get('/inventory', doctorController.getInventory);
 
 module.exports = router;

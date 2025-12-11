@@ -4,7 +4,7 @@ const billingController = require('../controllers/billingController');
 const { verifyToken, checkRole } = require('../middleware/authMiddleware');
 
 router.use(verifyToken);
-router.use(checkRole(['cashier', 'admin'])); // Allow admin too
+router.use(checkRole(['cashier', 'admin', 'doctor', 'pharmacist'])); // Allow admin too
 
 router.post('/create-invoice', billingController.createInvoice);
 router.get('/invoices', billingController.getInvoices);

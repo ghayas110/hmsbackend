@@ -1,4 +1,4 @@
-const { Inventory, Prescription, Appointment, Patient, User, Doctor, sequelize } = require('../models');
+const { Inventory, Prescription, Appointment, Patient, User, Doctor, Invoice, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 // ... existing code ...
@@ -193,7 +193,9 @@ exports.getPrescriptions = async (req, res) => {
 exports.dispensePrescription = async (req, res) => {
     try {
         const { id } = req.params;
-        const prescription = await Prescription.findByPk(id);
+        const prescription = await Prescription.findByPk(id, {
+            include: [{ model: Appointment }]
+        });
 
         if (!prescription) {
             return res.status(404).json({ message: 'Prescription not found' });
@@ -203,30 +205,57 @@ exports.dispensePrescription = async (req, res) => {
             return res.status(400).json({ message: 'Prescription already dispensed' });
         }
 
-        const medicines = prescription.medicines || []; // Array of { name, quantity, ... } or raw json
+        const medicines = prescription.medicines || []; // Array of { name, quantity, ... }
+        let totalCost = 0;
 
-        // Transaction could be safer here, but keeping simple for now.
         for (const med of medicines) {
-            // Find inventory item by name (case insensitive ideally, but strict for now)
             const inventoryItem = await Inventory.findOne({
                 where: { medicine_name: med.name }
             });
 
             if (inventoryItem) {
-                // Deduct stock. Ignore if stock goes negative? Or block?
-                // Let's allow negative for tracing, or check stock.
-                // Professional: Check stock.
-                if (inventoryItem.stock >= (med.quantity || 1)) {
-                    await inventoryItem.decrement('stock', { by: med.quantity || 1 });
+                const quantity = med.quantity || 1;
+
+                // Calculate cost
+                totalCost += parseFloat(inventoryItem.price) * quantity;
+
+                // Deduct stock
+                if (inventoryItem.stock >= quantity) {
+                    await inventoryItem.decrement('stock', { by: quantity });
                 } else {
-                    // Log warning or parial fill? proceeding for demo.
                     console.warn(`Insufficient stock for ${med.name}`);
+                    // You might want to throw error or handle partial dispense here
                 }
+            } else {
+                console.warn(`Medicine ${med.name} not found in inventory.`);
             }
         }
 
+        // Create Invoice for Medicines
+        let invoice = null;
+        if (totalCost > 0) {
+            invoice = await Invoice.create({
+                patient_id: prescription.Appointment ? prescription.Appointment.patient_id : null,
+                // Note: Appointment inclusion above ensures patient_id access if needed,
+                // but usually prescription->appointment has patient_id.
+                // Ideally, fetch patient_id from appointment properly.
+                // Let's rely on Appointment model being loaded.
+                appointment_id: prescription.appointment_id,
+                amount: totalCost,
+                status: 'unpaid',
+                issued_by: req.user.id, // Pharmacist
+                payment_method: 'cash' // Default or passed in body
+            });
+        }
+
         await prescription.update({ status: 'dispensed' });
-        res.json({ message: 'Prescription dispensed successfully', prescription });
+
+        res.json({
+            message: 'Prescription dispensed successfully and invoice generated',
+            prescription,
+            totalCost,
+            invoice
+        });
 
     } catch (error) {
         console.error(error);

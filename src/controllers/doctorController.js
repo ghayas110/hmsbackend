@@ -1,4 +1,4 @@
-const { Appointment, Prescription, Patient, User, LabTest, Doctor, SavedDiagnosis, MedicineGroup, TestCategory, TestDefinition, Invoice } = require('../models');
+const { Appointment, Prescription, Patient, User, LabTest, Doctor, SavedDiagnosis, MedicineGroup, TestCategory, TestDefinition, Invoice, Inventory } = require('../models');
 const { Op } = require('sequelize');
 
 exports.getAppointments = async (req, res) => {
@@ -402,7 +402,6 @@ exports.getTestCategories = async (req, res) => {
         if (!doctor) return res.status(404).json({ message: 'Doctor not found' });
 
         const categories = await TestCategory.findAll({
-            where: { doctor_id: doctor.id },
             include: [TestDefinition]
         });
         res.json(categories);
@@ -513,5 +512,42 @@ exports.getDoctorSlots = async (req, res) => {
 
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+exports.getInventory = async (req, res) => {
+    try {
+        const { search } = req.query;
+        let whereClause = {};
+
+        if (search) {
+            whereClause = {
+                medicine_name: { [Op.like]: `%${search}%` }
+            };
+        }
+
+        const inventory = await Inventory.findAll({ where: whereClause });
+        res.json(inventory);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+exports.getInventory = async (req, res) => {
+    try {
+        const { search } = req.query;
+        let whereClause = {};
+
+        if (search) {
+            whereClause = {
+                medicine_name: { [Op.like]: `%${search}%` }
+            };
+        }
+
+        const inventory = await Inventory.findAll({ where: whereClause });
+        res.json(inventory);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
     }
 };

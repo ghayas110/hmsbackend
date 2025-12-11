@@ -46,7 +46,7 @@ const TestCategory = sequelize.define('TestCategory', {
     },
     doctor_id: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true, // Changed to allow creation by Lab Tech/Admin
     },
     name: {
         type: DataTypes.STRING,
@@ -85,6 +85,12 @@ const TestDefinition = sequelize.define('TestDefinition', {
         type: DataTypes.STRING,
         allowNull: false,
     },
+    parameters: {
+        type: DataTypes.JSON, // Array of { name, unit, normal_range_min, normal_range_max, type }
+        allowNull: true,
+        defaultValue: []
+    }
+
 }, { timestamps: true });
 
 module.exports = {

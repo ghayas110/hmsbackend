@@ -15,12 +15,16 @@ const LabTest = sequelize.define('LabTest', {
         type: DataTypes.INTEGER,
         allowNull: false,
     },
+    prescription_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+    },
     test_type: {
         type: DataTypes.STRING,
         allowNull: false,
     },
     result: {
-        type: DataTypes.TEXT,
+        type: DataTypes.JSON, // Stores { summary, readings: [{ param, value, status, normal_range }] }
         allowNull: true,
     },
     status: {
