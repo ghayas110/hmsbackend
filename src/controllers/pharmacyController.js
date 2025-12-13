@@ -193,6 +193,7 @@ exports.getPrescriptions = async (req, res) => {
 exports.dispensePrescription = async (req, res) => {
     try {
         const { id } = req.params;
+        const { payment_method } = req.body || {};
         const prescription = await Prescription.findByPk(id, {
             include: [{ model: Appointment }]
         });
@@ -205,46 +206,45 @@ exports.dispensePrescription = async (req, res) => {
             return res.status(400).json({ message: 'Prescription already dispensed' });
         }
 
-        const medicines = prescription.medicines || []; // Array of { name, quantity, ... }
+        const medicines = prescription.medicines || [];
         let totalCost = 0;
+        const inventoryUpdates = [];
 
+        // 1. Validation Phase
         for (const med of medicines) {
             const inventoryItem = await Inventory.findOne({
                 where: { medicine_name: med.name }
             });
 
-            if (inventoryItem) {
-                const quantity = med.quantity || 1;
-
-                // Calculate cost
-                totalCost += parseFloat(inventoryItem.price) * quantity;
-
-                // Deduct stock
-                if (inventoryItem.stock >= quantity) {
-                    await inventoryItem.decrement('stock', { by: quantity });
-                } else {
-                    console.warn(`Insufficient stock for ${med.name}`);
-                    // You might want to throw error or handle partial dispense here
-                }
-            } else {
-                console.warn(`Medicine ${med.name} not found in inventory.`);
+            if (!inventoryItem) {
+                return res.status(400).json({ message: `Medicine ${med.name} not found in inventory.` });
             }
+
+            const quantity = med.quantity || 1;
+            if (inventoryItem.stock < quantity) {
+                return res.status(400).json({ message: `Insufficient stock for ${med.name}. Available: ${inventoryItem.stock}, Required: ${quantity}` });
+            }
+
+            totalCost += parseFloat(inventoryItem.price) * quantity;
+            inventoryUpdates.push({ item: inventoryItem, quantity });
         }
 
-        // Create Invoice for Medicines
+        // 2. Execution Phase
+        // Reduce stock
+        for (const update of inventoryUpdates) {
+            await update.item.decrement('stock', { by: update.quantity });
+        }
+
+        // Create Invoice
         let invoice = null;
         if (totalCost > 0) {
             invoice = await Invoice.create({
                 patient_id: prescription.Appointment ? prescription.Appointment.patient_id : null,
-                // Note: Appointment inclusion above ensures patient_id access if needed,
-                // but usually prescription->appointment has patient_id.
-                // Ideally, fetch patient_id from appointment properly.
-                // Let's rely on Appointment model being loaded.
                 appointment_id: prescription.appointment_id,
                 amount: totalCost,
                 status: 'unpaid',
-                issued_by: req.user.id, // Pharmacist
-                payment_method: 'cash' // Default or passed in body
+                issued_by: req.user.id,
+                payment_method: payment_method || 'cash'
             });
         }
 

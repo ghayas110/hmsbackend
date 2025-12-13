@@ -27,6 +27,7 @@ router.post('/medicine-group', doctorController.addMedicineGroup);
 router.get('/medicine-group', doctorController.getMedicineGroups);
 router.get('/medicine-group/:id', doctorController.getMedicineGroupById);
 router.put('/medicine-group/:id', doctorController.updateMedicineGroup);
+router.delete('/medicine-group/:id', doctorController.deleteMedicineGroup);
 
 router.post('/test-category', doctorController.addTestCategory);
 router.get('/test-category', doctorController.getTestCategories);

@@ -374,6 +374,31 @@ exports.updateMedicineGroup = async (req, res) => {
     }
 };
 
+exports.deleteMedicineGroup = async (req, res) => {
+    try {
+        const doctorId = req.user.id;
+        const { id } = req.params;
+        const doctor = await Doctor.findOne({ where: { user_id: doctorId } });
+        if (!doctor) return res.status(404).json({ message: 'Doctor not found' });
+
+        const group = await MedicineGroup.findOne({
+            where: {
+                id,
+                doctor_id: doctor.id
+            }
+        });
+
+        if (!group) {
+            return res.status(404).json({ message: 'Medicine Group not found' });
+        }
+
+        await group.destroy();
+        res.json({ message: 'Medicine Group deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
 exports.addTestCategory = async (req, res) => {
     try {
         const doctorId = req.user.id;
